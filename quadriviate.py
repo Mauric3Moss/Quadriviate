@@ -9,7 +9,17 @@ from nltk.corpus import words
 # Download the nltk word list if you don't have it
 nltk.download("words")
 
-def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0.5):
+def find_directory(root_search_dir, target_folder):
+    """
+    Recursively searches for a specific directory (target_folder) starting from root_search_dir.
+    Returns the path to the target folder if found, otherwise None.
+    """
+    for root, dirs, _ in os.walk(root_search_dir):
+        if target_folder in dirs:
+            return os.path.join(root, target_folder)
+    return None
+
+def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0.8, max_results=100):
     """
     Performs an advanced file-system search for files, folders, and directories
     matching the given keyword or phrase, including variations.
@@ -19,6 +29,7 @@ def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0
         keyword: The keyword or phrase to search for.
         search_contents: Whether to search the contents of files for matches.
         max_distance: The maximum Levenshtein distance for variations.
+        max_results: The maximum number of results to return.
     """
 
     # Define the output file path in the Downloads folder
@@ -26,7 +37,6 @@ def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0
 
     def is_close_match(word1, word2):
         """Check if two words are close matches based on stricter Levenshtein distance tolerance."""
-        # Stricter ratio (increased from original to reduce variation count)
         return SequenceMatcher(None, word1, word2).ratio() >= 1 - max_distance / max(len(word1), len(word2))
 
     # Generate a list of potential variations of the keyword using nltk's word list
@@ -51,19 +61,30 @@ def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0
                 search_directory(item_path)
 
             elif os.path.isfile(item_path):
-                # Check if the file name matches the keyword or its variations
-                if re.search(search_pattern, item, re.IGNORECASE):
-                    matches.append(f"Found matching file: {item_path}")
-
                 if search_contents:
                     try:
                         with open(item_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-                            # Search the file content using the keyword and variations
-                            if re.search(search_pattern, content, re.IGNORECASE):
-                                matches.append(f"Found matching content in: {item_path}")
+                            for i, line in enumerate(f, start=1):
+                                # Search the file content using the keyword and variations
+                                if re.search(search_pattern, line, re.IGNORECASE):
+                                    match = f"\n{item_path}\nLine {i}: {line.strip()}\n"
+                                    matches.append(match)
+                                    print(match)
+                                    if len(matches) >= max_results:
+                                        return
                     except UnicodeDecodeError:
-                        matches.append(f"Error decoding file: {item_path}")
+                        match = f"Error decoding file: {item_path}"
+                        matches.append(match)
+                        print(match)
+                        if len(matches) >= max_results:
+                            return
+
+                # Check if the file name matches the keyword or its variations
+                if re.search(search_pattern, item, re.IGNORECASE):
+                    matches.append(f"Found matching file: {item_path}")
+                    print(f"Found matching file: {item_path}")
+                    if len(matches) >= max_results:
+                        return
 
     # Start searching from the root directory
     search_directory(root_dir)
@@ -88,7 +109,7 @@ def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0
             f.write(match + "\n")
 
     # Notify that the operation is complete
-    print("Operation complete. Results saved.")
+    print(f"Operation complete. {len(matches)} matches found in {elapsed_time:.2f} seconds. Results saved.")
 
     # Automatically open the output file after writing is done
     os.startfile(output_file)  # For Windows
@@ -99,6 +120,14 @@ if __name__ == "__main__":
         sys.exit()
 
     keyword = sys.argv[1]
-    root_dir = "C:\\Users\\dtmin\\Downloads\\quadrivium-main"  # Example directory
 
+    # Search for the quadrivium-main folder in Downloads
+    downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
+    root_dir = find_directory(downloads_dir, "quadrivium-main")
+
+    if root_dir is None:
+        print("The directory 'quadrivium-main' was not found.")
+        sys.exit()
+
+    # Perform search with the found quadrivium-main directory
     advanced_file_search(root_dir, keyword)

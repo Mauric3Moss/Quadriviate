@@ -19,7 +19,7 @@ def find_directory(root_search_dir, target_folder):
             return os.path.join(root, target_folder)
     return None
 
-def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0.8, max_results=100):
+def advanced_file_search(root_dir, keyword, search_contents=True, max_distance=0.7, max_results=100):
     """
     Performs an advanced file-system search for files, folders, and directories
     matching the given keyword or phrase, including variations.
